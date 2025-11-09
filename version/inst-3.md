@@ -117,6 +117,7 @@ To `GRUB_CMDLINE_LINUX_DEFAULT`
 >
 > ```fish
 > sudo pacman -S unzip gzip xz zip fastfetch man hyprpolkitagent network-manager-applet xdg-desktop-portal-hyprland cava qbittorrent yazi keepassxc
+> systemctl enable --now hyprpolkitagent
 > ```
 >
 > **Notes:**
@@ -577,19 +578,19 @@ Intel GPU Driver & Wayland Environment Setup
 
 Graphics on Linux operate across several layers: **kernel**, **drivers**, **libraries**, and **display/compositor**.
 
-- **Kernel level:** `i915` (Intel GPU kernel module; alternatives include `xe`, etc.)  
+- **Kernel level:** `i915` (Intel GPU kernel module; alternatives include `xe`, etc.)
   Handles direct communication with the GPU, mode setting (KMS), and low-level hardware management.
 
-- **Driver / microcode layer:** e.g., `intel-ucode`  
+- **Driver / microcode layer:** e.g., `intel-ucode`
   Provides CPU/microcode updates necessary for stable GPU operation, enabling the kernel module to talk to the hardware safely.
 
-- **Libraries / APIs:** e.g., OpenGL (Mesa), Vulkan (`vulkan-intel`)  
+- **Libraries / APIs:** e.g., OpenGL (Mesa), Vulkan (`vulkan-intel`)
   Provide user-space interfaces for complex GPU operations, including 3D rendering and general GPU computation.
 
-- **Display server / compositor:** e.g., `xorg-server`, `xorg-xwayland`  
+- **Display server / compositor:** e.g., `xorg-server`, `xorg-xwayland`
   Provides windowing, input/output, and graphical context, connecting applications to the underlying GPU APIs.
 
-> **Hardware acceleration:** Offloading work from the CPU to specialized hardware.  
+> **Hardware acceleration:** Offloading work from the CPU to specialized hardware.
 > This includes:
 >
 > - GPU rendering (aka GPU acceleration)
@@ -631,31 +632,52 @@ Graphics on Linux operate across several layers: **kernel**, **drivers**, **libr
 
 ---
 
-## 1.1.0 | Stable -> Feat[@apps]: Semi Windows Apps Support (Wine)
+````md
+## 1.1.0 | Stable → Feat[@apps]: Semi Windows Apps Support (Wine)
+
+> **Description:**
+>
+> Adds support for running semi-native Windows applications using Wine and related utilities.
+
+### Setup — Wine Environment
 
 > **Commands:**
 >
 > ```fish
 > sudo pacman -Syu wine wine-gecko wine-mono winetricks zenity
 > ```
+>
+> **Note:** Ensure the `multilib` repository is enabled in `/etc/pacman.conf`  
+> by uncommenting the `[multilib]` section and its `Include` line.
 
-Note: edited `/etc/pacman.conf` uncommented out `multilib` entry
+---
 
-## 1.2.0 | Stable -> Feat[@apps]: Xamp PHP Dev Server
+## 1.2.0 | Stable → Feat[@apps]: XAMPP PHP Dev Server
+
+> **Description:**
+>
+> Adds support for local PHP and Apache development through XAMPP,  
+> along with native PHP and Composer for flexibility.
+
+### Setup — PHP Stack
 
 > **Commands:**
 >
 > ```fish
-> pacman -S xampp
+> yay -S xampp
+> sudo pacman -S php composer
 > ```
 
-## 1.3.0 | Stable -> Feat[@shell]: Speech Synthesis
+---
 
-> **Desciption:**
+## 1.3.0 | Stable → Feat[@shell]: Speech Synthesis via Piper
+
+> **Description:**
 >
-> Fully configured `llm` based speech to text synthesis through `piper`
+> Implements speech synthesis using **Piper TTS** integrated with  
+> the **Speech Dispatcher** system.
 
-### Setup - Speech Dispatcher
+### Setup — Speech Dispatcher
 
 > **Commands:**
 >
@@ -664,20 +686,123 @@ Note: edited `/etc/pacman.conf` uncommented out `multilib` entry
 > spd-conf
 > ```
 
-### Setup - Piper & Piper Voices
+### Setup — Piper & Voices
 
 > **Commands:**
->
-> Get `piper` run:
 >
 > ```fish
 > yay -S piper-tts-bin piper-voices-en-us
 > ```
 >
-> To Configure `piper` and `speech-dispatcher`
+> Then configure Speech Dispatcher to use Piper:
 >
-> Add the line `
+> Add the following line to  
+> `~/.config/speech-dispatcher/speechd.conf`:
+>
+> ```text
 > AddModule "piper-tts-generic" "sd_generic" "piper-tts-generic.conf"
-> ` to `~/.config/speech-dispatcher/speechd.conf`
+> ```
 >
-> And set `DefaultModule    "piper-tts-generic"`
+> And set:
+>
+> ```text
+> DefaultModule "piper-tts-generic"
+> ```
+
+---
+
+## 1.3.1 | Stable → Patch[@apps]: Wine Optimizations & Dependencies
+
+> **Description:**
+>
+> Improves Wine app compatibility by installing essential  
+> runtime components and DirectX libraries via Winetricks.
+
+### Setup — Winetricks Essentials
+
+> **Commands:**
+>
+> ```fish
+> winetricks -q corefonts vcrun2019 dxvk d3dcompiler_47 d3dx9 d3dx10 d3dx11_43 dotnet48
+> ```
+
+#### Breakdown:
+
+| Package | Purpose |
+|----------|----------|
+| **corefonts** | Adds Microsoft core fonts for UI and text rendering |
+| **vcrun2019** | Installs Visual C++ runtime dependencies (modern apps) |
+| **dxvk** | Enables Vulkan-based DirectX translation for faster rendering |
+| **d3dcompiler_47**, **d3dx9/10/11_43** | Provides Direct3D shader & API compatibility |
+| **dotnet48** | Required for modern .NET-based Windows applications |
+
+---
+
+### Setup — Wine Registry Optimization
+
+> **Purpose:**  
+> Improve rendering and performance for Vulkan-based setups.
+
+1. Create a file named `perf.reg` with:
+   ```reg
+   [HKEY_CURRENT_USER\Software\Wine\Direct3D]
+   "renderer"="vulkan"
+   "VideoMemorySize"="4096"
+   "csmt"="enabled"
+   "OffscreenRenderingMode"="fbo"
+   "UseGLSL"="enabled"
+````
+
+2. Apply configuration:
+
+   ```fish
+   wine regedit perf.reg
+   ```
+
+**Explanation:**
+
+| Key                          | Description                                                |
+| ---------------------------- | ---------------------------------------------------------- |
+| `renderer=vulkan`            | Forces Vulkan backend for better GPU performance           |
+| `VideoMemorySize=4096`       | Allocates 4 GB VRAM to Wine’s Direct3D layer               |
+| `csmt=enabled`               | Enables multithreaded command stream for faster draw calls |
+| `OffscreenRenderingMode=fbo` | Uses Framebuffer Objects for smoother offscreen rendering  |
+| `UseGLSL=enabled`            | Enables OpenGL shader support for modern effects           |
+
+---
+
+## 1.3.2 | Stable → Patch[@shell]: SpaceTimeDB Setup
+
+> **Description:**
+>
+> Adds SpaceTimeDB client for distributed application state or time-based data management.
+>
+> **Commands:**
+>
+> ```fish
+> curl -sSf https://install.spacetimedb.com | sh
+> fish_add_path /home/cat/.local/bin/
+> ```
+
+---
+
+## 1.3.3 | Stable → Patch[@shell]: Ollama Vulkan Backend Extension
+
+> **Description:**
+>
+> Adds Vulkan backend support for Ollama’s local LLM inference,
+> improving inference speed and efficiency.
+
+> **Observation:**
+>
+> Thanks to the existing Intel Vulkan configuration,
+> an average **+20% inference speed** was observed:
+>
+> - **1–2B models:** from instant → *fast output*
+> - **2–8B models:** from fast → *mid output*
+>
+> **Commands:**
+>
+> ```fish
+> sudo pacman -S ollama-vulkan fortunecraft llm-manager
+> ```
